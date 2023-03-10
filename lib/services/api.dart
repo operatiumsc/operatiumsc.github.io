@@ -3,13 +3,44 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-class DioService {
+import 'token_manager.dart';
+
+abstract class ApiService {
+  Dio init();
+}
+
+class DioClient implements ApiService {
+  @override
   Dio init() {
-    final Dio dio = Dio();
+    final tokenManager = TokenManager();
+    final token = tokenManager.getAuthToken();
+    final dio = Dio()
+      ..options.baseUrl = ''
+      ..options.headers = {
+        HttpHeaders.authorizationHeader: 'Bearer $token',
+        HttpHeaders.acceptCharsetHeader: 'utf-8'
+      }
+      ..interceptors.add(DioInterceptor());
 
-    //Add dio options below.
-    dio.options.baseUrl = '';
+    return dio;
+  }
+}
 
+class DioClientWithoutAuth implements ApiService {
+  @override
+  Dio init() {
+    final dio = Dio()
+      ..options.baseUrl = ''
+      ..interceptors.add(DioInterceptor());
+
+    return dio;
+  }
+}
+
+class MockDio implements ApiService {
+  @override
+  Dio init() {
+    final dio = Dio()..interceptors.add(DioInterceptor());
     return dio;
   }
 }
@@ -19,16 +50,6 @@ class DioInterceptor extends Interceptor {
   onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
     debugPrint('REQUEST[${options.method}] => PATH: ${options.path}');
     debugPrint('DATA: ${options.data}');
-
-//Check token
-    String token = getStorageService.authToken;
-    debugPrint('ACCESS TOKEN HEADER => $token');
-    if (token.isNotEmpty) {
-      options.headers = {
-        HttpHeaders.authorizationHeader: 'Bearer $token',
-        HttpHeaders.acceptCharsetHeader: 'utf-8'
-      };
-    }
     return super.onRequest(options, handler);
   }
 
